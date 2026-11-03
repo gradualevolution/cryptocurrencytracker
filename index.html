@@ -22,8 +22,8 @@
 
   .main { flex: 1; display: flex; gap: 12px; min-height: 0; }
   .sidebar { width: 340px; flex-shrink: 0; overflow-y: auto; border-radius: 12px; }
-  .charts { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr 1fr; gap: 12px; min-width: 0; }
-  .card { border-radius: 12px; overflow: hidden; min-height: 260px; min-width: 0; width: 100%; box-sizing: border-box; }
+  .charts { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr 1fr 1fr; gap: 12px; min-width: 0; }
+  .card { border: 1px solid #222733; border-radius: 12px; overflow: hidden; min-height: 220px; min-width: 0; width: 100%; box-sizing: border-box; }
   .tradingview-widget-container, .tradingview-widget-container__widget { height: 100%; width: 100%; }
   @media (max-width: 900px) {
     body { height: auto; }
@@ -35,7 +35,7 @@
 </head>
 <body>
 
-<!-- Top ticker: ATOM + ZRO first, then top coins -->
+<!-- Top ticker: ATOM + ZRO + MORPHO first, then top coins -->
 <div class="ticker"><div class="track" id="track"><span class="msg">Loading prices…</span></div></div>
 
 <div class="main">
@@ -45,7 +45,7 @@
     <gecko-coin-list-widget locale="en" dark-mode="true" outlined="true" initial-currency="usd"></gecko-coin-list-widget>
   </div>
 
-  <!-- Right: ATOM and ZRO charts (hover for exact price) -->
+  <!-- Right: ATOM, ZRO and MORPHO charts (hover for exact price) -->
   <div class="charts">
     <div class="card">
       <div class="tradingview-widget-container">
@@ -77,6 +77,21 @@
         </script>
       </div>
     </div>
+    <div class="card">
+      <div class="tradingview-widget-container">
+        <div class="tradingview-widget-container__widget"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js" async>
+        {
+          "symbols": [["Morpho", "COINBASE:MORPHOUSD|1D"]],
+          "chartOnly": false, "width": "100%", "height": "100%", "locale": "en",
+          "colorTheme": "dark", "autosize": true, "showVolume": false,
+          "showMA": false, "hideDateRanges": false, "scalePosition": "right",
+          "scaleMode": "Normal", "fontSize": "10", "noTimeScale": false,
+          "valuesTracking": "1", "chartType": "area", "isTransparent": true
+        }
+        </script>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -84,8 +99,8 @@
   // ---- SETTINGS ----
   // Ticker speed in pixels per second. Lower = slower. (20 is slow, 10 is very slow, 50 is fast)
   const TICKER_PX_PER_SEC = 20;
-  // Coins in the ticker (CoinGecko ids). ATOM and ZRO come first.
-  const IDS = ["cosmos","layerzero","bitcoin","ethereum","tether","binancecoin","solana","ripple","usd-coin","dogecoin","cardano","tron","avalanche-2","chainlink","shiba-inu","polkadot","the-open-network","litecoin","bitcoin-cash","near","uniswap"];
+  // Coins in the ticker (CoinGecko ids). ATOM, ZRO and MORPHO come first.
+  const IDS = ["cosmos","layerzero","morpho","bitcoin","ethereum","tether","binancecoin","solana","ripple","usd-coin","dogecoin","cardano","tron","avalanche-2","chainlink","shiba-inu","polkadot","the-open-network","litecoin","bitcoin-cash","near","uniswap"];
   // ------------------
 
   const track = document.getElementById('track');
