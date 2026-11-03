@@ -104,7 +104,6 @@
   // ------------------
 
   const track = document.getElementById('track');
-  let started = false;
 
   function fmt(p) {
     if (p >= 1) return p.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -119,28 +118,101 @@
     }).join('');
   }
 
-  async function load() {
-    try {
-      const url = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250&ids=' + IDS.join(',');
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(res.status);
-      const data = await res.json();
-      const coins = IDS.map(id => data.find(c => c.id === id)).filter(Boolean);
-      if (!coins.length) throw new Error('empty');
-      const html = itemsHtml(coins);
-      track.innerHTML = html + html;   // doubled for a seamless loop
-      if (!started) {
-        started = true;
-        const half = track.scrollWidth / 2;
-        track.style.animationDuration = (half / TICKER_PX_PER_SEC) + 's';
-      }
-    } catch (e) {
-      if (!started) track.innerHTML = '<span class="msg">Prices unavailable right now, retrying…</span>';
+  const MINUTE = 60000;
+  const cacheKey = 'prices-v1:' + IDS.join(',');
+  let state = {};
+  try { state = JSON.parse(localStorage.getItem(cacheKey)) || {}; } catch {}
+  state.cooldowns ||= {};
+  if (!state.source && !state.cooldowns.CoinGecko) state.next = Math.min(state.next || 0, (state.updated || 0) + MINUTE);
+  let timer;
+  let loading = false;
+
+  function render() {
+    const coins = Array.isArray(state.coins) ? state.coins : [];
+    const retry = new Date(state.next).toLocaleTimeString();
+    const message = state.failed ? 'Price update delayed. Next attempt at ' + retry + '.' : '';
+    if (!coins.length) {
+      track.textContent = message || 'Loading prices…';
+      track.style.animation = 'none';
+      return;
     }
+    const label = message ? '<span class="msg">' + message + '</span>' : '';
+    const html = label + itemsHtml(coins);
+    track.innerHTML = html + html;
+    track.style.animation = '';
+    track.style.animationDuration = (track.scrollWidth / 2 / TICKER_PX_PER_SEC) + 's';
   }
 
-  load();
-  setInterval(load, 60000);
+  const paprikaIds = {
+    bitcoin: 'btc-bitcoin', ethereum: 'eth-ethereum', tether: 'usdt-tether',
+    binancecoin: 'bnb-binance-coin', solana: 'sol-solana', ripple: 'xrp-xrp',
+    'usd-coin': 'usdc-usd-coin', dogecoin: 'doge-dogecoin', cardano: 'ada-cardano',
+    tron: 'trx-tron', 'avalanche-2': 'avax-avalanche', 'shiba-inu': 'shib-shiba-inu',
+    polkadot: 'dot-polkadot', 'the-open-network': 'ton-tontoken', litecoin: 'ltc-litecoin',
+    'bitcoin-cash': 'bch-bitcoin-cash', near: 'near-near-protocol', uniswap: 'uni-uniswap',
+    chainlink: 'link-chainlink', 'quant-network': 'qnt-quant', thorchain: 'rune-thorchain',
+    cosmos: 'atom-cosmos', layerzero: 'zro-layerzero', morpho: 'morpho-morpho'
+  };
+
+  async function getPrices(source) {
+    const primary = source === 'CoinGecko';
+    const url = primary
+      ? 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250&ids=' + IDS.join(',')
+      : 'https://api.coinpaprika.com/v1/tickers';
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) {
+      if (res.status === 429) {
+        const value = res.headers.get('Retry-After');
+        const deadline = /^\d+$/.test(value) ? Date.now() + Number(value) * 1000 : Date.parse(value);
+        state.cooldowns[source] = Math.max(Date.now() + MINUTE, deadline || Date.now() + 5 * MINUTE);
+      }
+      throw new Error('HTTP ' + res.status);
+    }
+    const rows = new Map((await res.json()).map(row => [row.id, row]));
+    const coins = IDS.map(id => {
+      if (primary) return rows.get(id);
+      const coin = rows.get(paprikaIds[id]);
+      if (!coin) return;
+      const quote = coin.quotes?.USD;
+      return { id, name: coin.name, symbol: coin.symbol, current_price: quote?.price,
+        price_change_percentage_24h: quote?.percent_change_24h,
+        image: 'https://static.coinpaprika.com/coin/' + paprikaIds[id] + '/logo.png' };
+    }).filter(coin => Number.isFinite(coin?.current_price));
+    if (!coins.length) throw new Error('No prices returned');
+    return coins;
+  }
+
+  async function refresh() {
+    clearTimeout(timer);
+    if (document.hidden || loading) return;
+    if (state.next > Date.now()) {
+      timer = setTimeout(refresh, Math.min(state.next - Date.now(), 2147483647));
+      return;
+    }
+    loading = true;
+    state.failed = true;
+    for (const source of ['CoinGecko', 'CoinPaprika']) {
+      if (state.cooldowns[source] > Date.now()) continue;
+      try {
+        state.coins = await getPrices(source);
+        state.source = source;
+        state.updated = Date.now();
+        state.failed = false;
+        break;
+      } catch (error) {
+        console.warn(source + ' ticker update failed', error.message);
+      }
+    }
+    state.next = Date.now() + MINUTE;
+    loading = false;
+    try { localStorage.setItem(cacheKey, JSON.stringify(state)); } catch {}
+    render();
+    timer = setTimeout(refresh, Math.max(0, Math.min(state.next - Date.now(), 2147483647)));
+  }
+
+  document.addEventListener('visibilitychange', refresh);
+  render();
+  refresh();
 </script>
 
 </body>
