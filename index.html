@@ -85,6 +85,25 @@
       </div>
       <div class="perp-time" id="perpTime"></div>
     </div>
+
+    <!-- Below: live PONSUSDT Perp from Binance Futures -->
+    <div class="perp">
+      <div class="perp-head">
+        <span><span class="perp-dot" id="ponsDot"></span><b>PONSUSDT</b> Perp</span>
+        <span class="perp-wins" id="ponsWins">
+          <button data-m="1" class="on">1m</button><button data-m="5">5m</button><button data-m="15">15m</button><button data-m="60">1h</button>
+        </span>
+      </div>
+      <div class="perp-row">
+        <span class="perp-price" id="ponsPrice">—</span>
+        <span class="perp-chg" id="ponsChg">—</span>
+      </div>
+      <div class="perp-sub">
+        <span id="ponsAbs">Connecting…</span>
+        <span id="ponsHL"></span>
+      </div>
+      <div class="perp-time" id="ponsTime"></div>
+    </div>
   </div>
 
   <!-- Right: BTC, ZRO and ATOM charts (hover for exact price) -->
@@ -258,12 +277,12 @@
 </script>
 
 <script>
-  // ---- Live BLESSUSDT Perp (Binance USDⓈ-M Futures) ----
-  (function () {
-    const SYMBOL = 'BLESSUSDT';
-    const $ = id => document.getElementById(id);
-    const dot = $('perpDot'), priceEl = $('perpPrice'), chgEl = $('perpChg'), absEl = $('perpAbs'), hlEl = $('perpHL');
-    const timeEl = $('perpTime'), winsEl = $('perpWins');
+  // ---- Live Perp boxes (Binance USDⓈ-M Futures) ----
+  // livePerp(symbol, idPrefix): idPrefix matches the box's element ids (e.g. 'perp' -> perpDot, perpPrice…)
+  function livePerp(SYMBOL, P) {
+    const $ = id => document.getElementById(P + id);
+    const dot = $('Dot'), priceEl = $('Price'), chgEl = $('Chg'), absEl = $('Abs'), hlEl = $('HL');
+    const timeEl = $('Time'), winsEl = $('Wins');
     // Live change = current price vs the price exactly N minutes ago (rolling window)
     const REFRESH_SEC = 15;     // box fetches fresh data from Binance every 15 seconds
     let win = 1;                // default window in minutes
@@ -334,7 +353,7 @@
       } catch (e) {
         dot.classList.remove('live');
         if (priceEl.textContent === '—') absEl.textContent = 'Unable to reach Binance';
-        console.warn('BLESSUSDT update failed', e.message);
+        console.warn(SYMBOL + ' update failed', e.message);
       } finally {
         busy = false;
         nextAt = Date.now() + REFRESH_SEC * 1000;
@@ -348,7 +367,10 @@
       if (timeEl.dataset.updated) timeEl.textContent = 'Updated ' + timeEl.dataset.updated + ' · next in ' + left + 's';
     }, 1000);
     update();
-  })();
+  }
+
+  livePerp('BLESSUSDT', 'perp');
+  livePerp('PONSUSDT', 'pons');
 </script>
 
 </body>
